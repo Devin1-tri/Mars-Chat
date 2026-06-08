@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mars Chat — Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        .bg-mars { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+        .glow { box-shadow: 0 0 30px rgba(239, 68, 68, 0.15); }
+    </style>
+</head>
+<body class="bg-mars min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-md">
+        <!-- Logo -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-red-500/20 border border-red-500/30 mb-4">
+                <span class="text-4xl">🔴</span>
+            </div>
+            <h1 class="text-3xl font-bold text-white">Mars Chat</h1>
+            <p class="text-gray-400 mt-1">Office Communication</p>
+        </div>
+
+        <!-- Form -->
+        <div class="bg-gray-900/60 backdrop-blur-xl rounded-2xl border border-gray-700/50 p-8 glow">
+            <h2 class="text-xl font-semibold text-white mb-6">Masuk</h2>
+
+            {% if error %}
+            <div class="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="post" action="/login" class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1.5">Username</label>
+                    <input name="username" type="text" required autocomplete="username"
+                           class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                           placeholder="Masukkan username">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-1.5">Password</label>
+                    <input name="password" type="password" required autocomplete="current-password"
+                           class="w-full px-4 py-3 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent transition"
+                           placeholder="Masukkan password">
+                </div>
+                <button type="submit"
+                        class="w-full py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-xl transition duration-200 shadow-lg shadow-red-500/25">
+                    Masuk
+                </button>
+            </form>
+
+            <p class="text-center text-gray-400 text-sm mt-6">
+                Belum punya akun?
+                <a href="/register" class="text-red-400 hover:text-red-300 font-medium">Daftar</a>
+            </p>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mars Chat</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        [x-cloak] { display: none !important; }
+        .bg-mars { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+        .msg-in { border-radius: 16px 16px 16px 4px; }
+        .msg-out { border-radius: 16px 16px 4px 16px; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+        .chat-scroll::-webkit-scrollbar { width: 4px; }
+        .chat-scroll::-webkit-scrollbar-track { background: transparent; }
+        .chat-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    </style>
+</head>
+<body class="bg-mars h-screen overflow-hidden">
+
+<div x-data="chatApp()" x-init="init()" class="h-screen flex">
+
+    <!-- ═══ LEFT SIDEBAR ═══ -->
+    <div class="w-80 flex-shrink-0 bg-gray-900/80 border-r border-gray-700/50 flex flex-col h-full"
+         :class="{'max-md:hidden': activeConv}">
+
+        <!-- Header -->
+        <div class="flex-shrink-0 p-4 border-b border-gray-700/50">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
+                         :style="`background-color: {{ user.avatar_color }}`">
+                        {{ user.display_name[:1] }}
+                    </div>
+                    <div>
+                        <h1 class="text-white font-semibold text-sm">{{ user.display_name }}</h1>
+                        <p class="text-gray-400 text-xs">Online</p>
+                    </div>
+                </div>
+                <div class="flex gap-1">
+                    <button @click="showNewGroup = true" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition" title="Buat Grup">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </button>
+                    <a href="/logout" class="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700/50 rounded-lg transition" title="Keluar">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+                    </a>
+                </div>
+            </div>
+            <!-- Search -->
+            <input x-model="searchQuery" type="text" placeholder="Cari chat..."
+                   class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent">
+        </div>
+
+        <!-- Conversation List -->
+        <div class="flex-1 overflow-y-auto scrollbar-hide">
+            <template x-for="conv in filteredConversations" :key="conv.id">
+                <div @click="selectConversation(conv)"
+                     class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition"
+                     :class="{'bg-gray-700/40': activeConv && activeConv.id === conv.id}">
+                    <!-- Avatar -->
+                    <div class="relative flex-shrink-0">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
+                             :style="`background-color: ${conv.avatar_color}`"
+                             x-text="conv.type === 'group' ? '👥' : (conv.display_name || '?')[0]">
+                        </div>
+                        <div x-show="conv.type === 'dm' && conv.is_online"
+                             class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900"></div>
+                    </div>
+                    <!-- Info -->
+                    <div class="flex-1 min-w-0">
+                        <div class="flex justify-between items-baseline">
+                            <h3 class="text-white font-medium text-sm truncate" x-text="conv.name || conv.display_name || 'Chat'"></h3>
+                            <span class="text-gray-500 text-xs flex-shrink-0 ml-2" x-text="conv.last_time ? formatTime(conv.last_time) : ''"></span>
+                        </div>
+                        <div class="flex justify-between items-center mt-0.5">
+                            <p class="text-gray-400 text-xs truncate" x-text="conv.last_message || 'Belum ada pesan'"></p>
+                            <span x-show="conv.unread > 0"
+                                  class="flex-shrink-0 ml-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+                                  x-text="conv.unread"></span>
+                        </div>
+                    </div>
+                </div>
+            </template>
+            <div x-show="filteredConversations.length === 0" class="text-center py-12 text-gray-500">
+                <p class="text-3xl mb-2">💬</p>
+                <p class="text-sm">Belum ada chat</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ MAIN CHAT AREA ═══ -->
+    <div class="flex-1 flex flex-col h-full" x-show="activeConv" x-cloak>
+        <!-- Chat Header -->
+        <div class="flex-shrink-0 bg-gray-900/80 border-b border-gray-700/50 px-4 py-3 flex items-center gap-3">
+            <button @click="activeConv = null" class="md:hidden p-1 text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+            </button>
+            <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                 :style="`background-color: ${activeConv?.avatar_color || '#6366F1'}`"
+                 x-text="activeConv?.type === 'group' ? '👥' : (activeConv?.display_name || '?')[0]">
+            </div>
+            <div>
+                <h2 class="text-white font-semibold text-sm" x-text="activeConv?.name || activeConv?.display_name || 'Chat'"></h2>
+                <p class="text-gray-400 text-xs" x-text="activeConv?.type === 'group' ? `${activeConv?.member_count || 0} anggota` : (activeConv?.is_online ? 'Online' : 'Offline')"></p>
+            </div>
+            <div x-show="activeConv?.type === 'group'" class="ml-auto">
+                <button @click="showGroupInfo = !showGroupInfo" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Messages -->
+        <div id="chatMessages" class="flex-1 overflow-y-auto chat-scroll p-4 space-y-1"
+             @scroll="handleScroll($event)">
+            <div x-show="loadingMessages" class="text-center py-8 text-gray-500 text-sm">Memuat pesan...</div>
+            <template x-for="msg in messages" :key="msg.id">
+                <div :class="msg.user_id === {{ user.id }} ? 'flex justify-end' : 'flex justify-start'"
+                     class="mb-1">
+                    <div :class="msg.user_id === {{ user.id }} ? 'msg-out bg-red-500/90 text-white' : 'msg-in bg-gray-700/80 text-gray-100'"
+                         class="max-w-[75%] px-4 py-2.5 shadow-lg">
+                        <!-- Sender name in group -->
+                        <p x-show="activeConv?.type === 'group' && msg.user_id !== {{ user.id }}"
+                           class="text-xs font-semibold mb-1"
+                           :style="`color: ${msg.avatar_color}`"
+                           x-text="msg.display_name"></p>
+                        <!-- Text message -->
+                        <p x-show="msg.msg_type === 'text'" class="text-sm break-words whitespace-pre-wrap" x-text="msg.content"></p>
+                        <!-- Image message -->
+                        <div x-show="msg.msg_type === 'image'" class="my-1">
+                            <img :src="msg.file_path" class="max-w-xs rounded-lg cursor-pointer" @click="window.open(msg.file_path)" loading="lazy">
+                            <p x-show="msg.content && msg.content !== msg.file_name" class="text-xs mt-1 opacity-80" x-text="msg.content"></p>
+                        </div>
+                        <!-- File message -->
+                        <div x-show="msg.msg_type === 'file'" class="flex items-center gap-2 my-1">
+                            <div class="p-2 bg-white/10 rounded-lg">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            </div>
+                            <div>
+                                <a :href="msg.file_path" target="_blank" class="text-sm font-medium underline" x-text="msg.file_name || 'File'"></a>
+                            </div>
+                        </div>
+                        <!-- Time -->
+                        <p class="text-[10px] mt-1 text-right"
+                           :class="msg.user_id === {{ user.id }} ? 'text-red-200' : 'text-gray-400'"
+                           x-text="formatTime(msg.created_at)"></p>
+                    </div>
+                </div>
+            </template>
+            <!-- Typing indicator -->
+            <div x-show="typingUser" class="flex justify-start">
+                <div class="bg-gray-700/80 text-gray-300 px-4 py-2.5 rounded-2xl text-sm">
+                    <span x-text="typingUser" class="font-medium"></span> sedang mengetik...
+                </div>
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="flex-shrink-0 bg-gray-900/80 border-t border-gray-700/50 p-3">
+            <div class="flex items-end gap-2">
+                <!-- File upload -->
+                <label class="flex-shrink-0 p-2.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-xl cursor-pointer transition">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
+                    <input type="file" class="hidden" @change="uploadFile($event)" accept="*/*">
+                </label>
+                <!-- Text input -->
+                <div class="flex-1 relative">
+                    <textarea x-model="newMessage" @keydown.enter.prevent="sendMessage()" @input="sendTyping()"
+                              rows="1" placeholder="Ketik pesan..."
+                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none max-h-32"
+                              style="min-height: 42px;"></textarea>
+                </div>
+                <!-- Send button -->
+                <button @click="sendMessage()"
+                        class="flex-shrink-0 p-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition shadow-lg shadow-red-500/25">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ EMPTY STATE (no conversation selected) ═══ -->
+    <div class="flex-1 flex items-center justify-center" x-show="!activeConv" x-cloak class="max-md:hidden">
+        <div class="text-center">
+            <div class="text-6xl mb-4">🔴</div>
+            <h2 class="text-2xl font-bold text-white mb-2">Mars Chat</h2>
+            <p class="text-gray-400">Pilih chat untuk mulai percakapan</p>
+        </div>
+    </div>
+
+    <!-- ═══ NEW GROUP MODAL ═══ -->
+    <div x-show="showNewGroup" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-md mx-4 shadow-2xl">
+            <h3 class="text-lg font-semibold text-white mb-4">Buat Grup Baru</h3>
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-300 mb-1">Nama Grup</label>
+                    <input x-model="groupName" type="text" placeholder="Nama grup..."
+                           class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm focus:ring-2 focus:ring-red-500">
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-300 mb-2">Pilih Anggota</label>
+                    <div class="max-h-48 overflow-y-auto space-y-1">
+                        {% for u in all_users %}
+                        <label class="flex items-center gap-3 p-2 hover:bg-gray-700/30 rounded-lg cursor-pointer">
+                            <input type="checkbox" value="{{ u.id }}" x-model="selectedMembers"
+                                   class="rounded border-gray-600 text-red-500 focus:ring-red-500">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                                 style="background-color: {{ u.avatar_color }}">{{ u.display_name[:1] }}</div>
+                            <span class="text-white text-sm">{{ u.display_name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button @click="showNewGroup = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
+                <button @click="createGroup()" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition text-sm font-medium">Buat</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ NEW DM MODAL ═══ -->
+    <div x-show="showNewDM" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <h3 class="text-lg font-semibold text-white mb-4">Chat Baru</h3>
+            <div class="space-y-2 max-h-64 overflow-y-auto">
+                {% for u in all_users %}
+                <div @click="startDM({{ u.id }})"
+                     class="flex items-center gap-3 p-3 hover:bg-gray-700/30 rounded-xl cursor-pointer transition">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
+                         style="background-color: {{ u.avatar_color }}">{{ u.display_name[:1] }}</div>
+                    <span class="text-white text-sm font-medium">{{ u.display_name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <button @click="showNewDM = false" class="w-full mt-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Tutup</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function chatApp() {
+    return {
+        conversations: [],
+        activeConv: null,
+        messages: [],
+        newMessage: '',
+        searchQuery: '',
+        loadingMessages: false,
+        typingUser: null,
+        typingTimeout: null,
+        showNewGroup: false,
+        showNewDM: false,
+        showGroupInfo: false,
+        groupName: '',
+        selectedMembers: [],
+        ws: null,
+
+        init() {
+            this.loadConversations();
+            this.connectWebSocket();
+        },
+
+        connectWebSocket() {
+            const token = '{{ user.username }}';
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            this.ws = new WebSocket(`${protocol}//${location.host}/ws/${token}`);
+
+            this.ws.onmessage = (e) => {
+                const data = JSON.parse(e.data);
+                if (data.type === 'new_message') {
+                    if (this.activeConv && data.message.conversation_id === this.activeConv.id) {
+                        this.messages.push(data.message);
+                        this.$nextTick(() => this.scrollToBottom());
+                        // Mark as read
+                        this.ws.send(JSON.stringify({type: 'read', conversation_id: this.activeConv.id}));
+                    }
+                    this.updateConvPreview(data.message);
+                } else if (data.type === 'typing') {
+                    if (this.activeConv && data.user_id !== {{ user.id }}) {
+                        this.typingUser = data.display_name;
+                        clearTimeout(this.typingTimeout);
+                        this.typingTimeout = setTimeout(() => this.typingUser = null, 3000);
+                    }
+                } else if (data.type === 'status') {
+                    this.conversations.forEach(c => {
+                        if (c.other_id === data.user_id) {
+                            c.is_online = data.online ? 1 : 0;
+                        }
+                    });
+                }
+            };
+
+            this.ws.onclose = () => {
+                setTimeout(() => this.connectWebSocket(), 3000);
+            };
+        },
+
+        async loadConversations() {
+            const res = await fetch('/api/conversations');
+            this.conversations = await res.json();
+        },
+
+        async selectConversation(conv) {
+            this.activeConv = conv;
+            this.loadingMessages = true;
+            this.messages = [];
+            const res = await fetch(`/api/messages/${conv.id}`);
+            const data = await res.json();
+            this.messages = data.messages;
+            this.activeConv = {...this.activeConv, ...data.conversation};
+            this.loadingMessages = false;
+            this.$nextTick(() => this.scrollToBottom());
+            // Mark as read
+            if (this.ws && this.ws.readyState === 1) {
+                this.ws.send(JSON.stringify({type: 'read', conversation_id: conv.id}));
+            }
+            // Update unread
+            conv.unread = 0;
+        },
+
+        sendMessage() {
+            if (!this.newMessage.trim() || !this.activeConv || !this.ws) return;
+            this.ws.send(JSON.stringify({
+                type: 'message',
+                conversation_id: this.activeConv.id,
+                content: this.newMessage.trim(),
+                msg_type: 'text'
+            }));
+            // Optimistic add
+            this.messages.push({
+                id: Date.now(),
+                conversation_id: this.activeConv.id,
+                user_id: {{ user.id }},
+                content: this.newMessage.trim(),
+                msg_type: 'text',
+                display_name: '{{ user.display_name }}',
+                avatar_color: '{{ user.avatar_color }}',
+                created_at: new Date().toISOString()
+            });
+            this.newMessage = '';
+            this.$nextTick(() => this.scrollToBottom());
+        },
+
+        sendTyping() {
+            if (this.ws && this.ws.readyState === 1 && this.activeConv) {
+                this.ws.send(JSON.stringify({type: 'typing', conversation_id: this.activeConv.id}));
+            }
+        },
+
+        async uploadFile(event) {
+            const file = event.target.files[0];
+            if (!file || !this.activeConv) return;
+            if (file.size > 10 * 1024 * 1024) {
+                alert('File terlalu besar (max 10MB)');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('file', file);
+            const res = await fetch(`/api/upload/${this.activeConv.id}`, {method: 'POST', body: formData});
+            if (res.ok) {
+                const msg = await res.json();
+                this.messages.push(msg);
+                this.$nextTick(() => this.scrollToBottom());
+            }
+            event.target.value = '';
+        },
+
+        async startDM(userId) {
+            const formData = new FormData();
+            formData.append('other_user_id', userId);
+            const res = await fetch('/api/conversations/dm', {method: 'POST', body: formData});
+            const data = await res.json();
+            this.showNewDM = false;
+            await this.loadConversations();
+            const conv = this.conversations.find(c => c.id === data.conversation_id);
+            if (conv) this.selectConversation(conv);
+        },
+
+        async createGroup() {
+            if (!this.groupName.trim() || this.selectedMembers.length === 0) return;
+            const formData = new FormData();
+            formData.append('name', this.groupName.trim());
+            formData.append('member_ids', this.selectedMembers.join(','));
+            const res = await fetch('/api/conversations/group', {method: 'POST', body: formData});
+            const data = await res.json();
+            this.showNewGroup = false;
+            this.groupName = '';
+            this.selectedMembers = [];
+            await this.loadConversations();
+            const conv = this.conversations.find(c => c.id === data.conversation_id);
+            if (conv) this.selectConversation(conv);
+        },
+
+        updateConvPreview(msg) {
+            const conv = this.conversations.find(c => c.id === msg.conversation_id);
+            if (conv) {
+                conv.last_message = msg.content || (msg.msg_type === 'image' ? '📷 Gambar' : '📎 File');
+                conv.last_time = msg.created_at;
+                if (!this.activeConv || this.activeConv.id !== conv.id) {
+                    conv.unread = (conv.unread || 0) + 1;
+                }
+                // Move to top
+                this.conversations.sort((a, b) => {
+                    const ta = a.last_time ? new Date(a.last_time) : new Date(a.created_at || 0);
+                    const tb = b.last_time ? new Date(b.last_time) : new Date(b.created_at || 0);
+                    return tb - ta;
+                });
+            }
+        },
+
+        scrollToBottom() {
+            const el = document.getElementById('chatMessages');
+            if (el) el.scrollTop = el.scrollHeight;
+        },
+
+        handleScroll(e) {
+            if (e.target.scrollTop === 0 && this.messages.length >= 50) {
+                // Load older messages
+            }
+        },
+
+        formatTime(val) {
+            if (!val) return '';
+            const d = new Date(val);
+            const now = new Date();
+            if (d.toDateString() === now.toDateString()) {
+                return d.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'});
+            }
+            return d.toLocaleDateString('id-ID', {day: '2-digit', month: '2-digit'}) + ' ' +
+                   d.toLocaleTimeString('id-ID', {hour: '2-digit', minute: '2-digit'});
+        },
+
+        get filteredConversations() {
+            if (!this.searchQuery) return this.conversations;
+            const q = this.searchQuery.toLowerCase();
+            return this.conversations.filter(c =>
+                (c.name || '').toLowerCase().includes(q) ||
+                (c.display_name || '').toLowerCase().includes(q)
+            );
+        }
+    };
+}
+</script>
+</body>
+</html>
