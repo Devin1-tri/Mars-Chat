@@ -31,14 +31,14 @@
         <!-- Header -->
         <div class="flex-shrink-0 p-4 border-b border-gray-700/50">
             <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm"
-                         :style="`background-color: {{ user.avatar_color }}`">
-                        {{ user.display_name[:1] }}
+                <div class="flex items-center gap-3 cursor-pointer" @click="showMyProfile = true">
+                    <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden"
+                         style="background-color: {{ user.avatar_color }}">
+                        {% if user.avatar_url %}<img src="{{ user.avatar_url }}" class="w-full h-full object-cover">{% else %}{{ user.display_name[:1] }}{% endif %}
                     </div>
                     <div>
                         <h1 class="text-white font-semibold text-sm">{{ user.display_name }}</h1>
-                        <p class="text-gray-400 text-xs">Online</p>
+                        <p class="text-gray-400 text-xs">{{ user.bio[:30] if user.bio else 'Online' }}</p>
                     </div>
                 </div>
                 <div class="flex gap-1">
@@ -93,9 +93,48 @@
                 <p class="text-sm">Belum ada chat</p>
             </div>
         </div>
-    </div>
+        <!-- Online Users -->
+        <div x-show="onlineUsers.length > 0" class="flex-shrink-0 border-t border-gray-700/50">
+            <div class="px-4 py-2 flex items-center justify-between">
+                <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Online</span>
+                <span class="text-xs text-green-400" x-text="onlineUsers.filter(u => u.is_online).length + ' online'"></span>
+            </div>
+            <div class="flex gap-3 px-4 pb-3 overflow-x-auto scrollbar-hide">
+                <template x-for="u in onlineUsers.filter(u => u.is_online)" :key="u.id">
+                    <div @click="viewProfile(u)" class="flex flex-col items-center gap-1 cursor-pointer group flex-shrink-0">
+                        <div class="relative">
+                            <div class="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden border-2 border-green-500/50 group-hover:border-green-400 transition"
+                                 :style="`background-color: ${u.avatar_color}`">
+                                <img x-show="u.avatar_url" :src="u.avatar_url" class="w-full h-full object-cover">
+                                <span x-show="!u.avatar_url" x-text="(u.display_name || '?')[0]"></span>
+                            </div>
+                            <div class="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-gray-900"></div>
+                        </div>
+                        <span class="text-[10px] text-gray-400 group-hover:text-white transition max-w-[50px] truncate" x-text="u.display_name"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
 
-    <!-- ═══ MAIN CHAT AREA ═══ -->
+        <!-- All Users (offline) -->
+        <div x-show="onlineUsers.filter(u => !u.is_online).length > 0" class="flex-shrink-0 border-t border-gray-700/50">
+            <div class="px-4 py-2">
+                <span class="text-xs text-gray-500 font-medium uppercase tracking-wider">Offline</span>
+            </div>
+            <div class="flex gap-3 px-4 pb-3 overflow-x-auto scrollbar-hide">
+                <template x-for="u in onlineUsers.filter(u => !u.is_online)" :key="u.id">
+                    <div @click="viewProfile(u)" class="flex flex-col items-center gap-1 cursor-pointer group flex-shrink-0">
+                        <div class="w-11 h-11 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden opacity-50 group-hover:opacity-80 transition"
+                             :style="`background-color: ${u.avatar_color}`">
+                            <img x-show="u.avatar_url" :src="u.avatar_url" class="w-full h-full object-cover">
+                            <span x-show="!u.avatar_url" x-text="(u.display_name || '?')[0]"></span>
+                        </div>
+                        <span class="text-[10px] text-gray-500 max-w-[50px] truncate" x-text="u.display_name"></span>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
     <div class="flex-1 flex flex-col h-full" x-show="activeConv" x-cloak>
         <!-- Chat Header -->
         <div class="flex-shrink-0 bg-gray-900/80 border-b border-gray-700/50 px-4 py-3 flex items-center gap-3">
@@ -227,21 +266,61 @@
         </div>
     </div>
 
-    <!-- ═══ NEW DM MODAL ═══ -->
-    <div x-show="showNewDM" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+    <!-- ═══ VIEW PROFILE MODAL ═══ -->
+    <div x-show="showViewProfile" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showViewProfile = false">
         <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-sm mx-4 shadow-2xl">
-            <h3 class="text-lg font-semibold text-white mb-4">Chat Baru</h3>
-            <div class="space-y-2 max-h-64 overflow-y-auto">
-                {% for u in all_users %}
-                <div @click="startDM({{ u.id }})"
-                     class="flex items-center gap-3 p-3 hover:bg-gray-700/30 rounded-xl cursor-pointer transition">
-                    <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
-                         style="background-color: {{ u.avatar_color }}">{{ u.display_name[:1] }}</div>
-                    <span class="text-white text-sm font-medium">{{ u.display_name }}</span>
+            <div class="text-center">
+                <div class="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-3 overflow-hidden"
+                     :style="`background-color: ${viewingUser?.avatar_color}`">
+                    <img x-show="viewingUser?.avatar_url" :src="viewingUser?.avatar_url" class="w-full h-full object-cover">
+                    <span x-show="!viewingUser?.avatar_url" x-text="(viewingUser?.display_name || '?')[0]"></span>
                 </div>
-                {% endfor %}
+                <h3 class="text-lg font-semibold text-white" x-text="viewingUser?.display_name"></h3>
+                <p class="text-gray-400 text-sm mt-1" x-text="viewingUser?.bio || 'Belum ada bio'"></p>
+                <div class="flex items-center justify-center gap-2 mt-2">
+                    <div class="w-2 h-2 rounded-full" :class="viewingUser?.is_online ? 'bg-green-500' : 'bg-gray-500'"></div>
+                    <span class="text-xs" :class="viewingUser?.is_online ? 'text-green-400' : 'text-gray-500'" x-text="viewingUser?.is_online ? 'Online' : 'Offline'"></span>
+                </div>
             </div>
-            <button @click="showNewDM = false" class="w-full mt-4 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Tutup</button>
+            <button @click="startDMFromProfile()" class="w-full mt-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition text-sm font-medium">
+                💬 Kirim Pesan
+            </button>
+            <button @click="showViewProfile = false" class="w-full mt-2 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Tutup</button>
+        </div>
+    </div>
+
+    <!-- ═══ EDIT PROFILE MODAL ═══ -->
+    <div x-show="showMyProfile" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showMyProfile = false">
+        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-md mx-4 shadow-2xl">
+            <h3 class="text-lg font-semibold text-white mb-4">Profil Saya</h3>
+            <form @submit.prevent="saveProfile()">
+                <div class="flex items-center gap-4 mb-4">
+                    <div class="relative">
+                        <div class="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl overflow-hidden"
+                             style="background-color: {{ user.avatar_color }}">
+                            <img x-show="profilePreview || '{{ user.avatar_url }}'" :src="profilePreview || '{{ user.avatar_url }}'" class="w-full h-full object-cover">
+                            <span x-show="!profilePreview && !'{{ user.avatar_url }}'">{{ user.display_name[:1] }}</span>
+                        </div>
+                        <label class="absolute bottom-0 right-0 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-red-600 transition shadow-lg">
+                            <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                            <input type="file" class="hidden" accept="image/*" @change="previewAvatar($event)">
+                        </label>
+                    </div>
+                    <div>
+                        <p class="text-white font-semibold">{{ user.display_name }}</p>
+                        <p class="text-gray-400 text-sm">@{{ user.username }}</p>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-300 mb-1">Bio</label>
+                    <textarea x-model="profileBio" rows="3" placeholder="Ceritakan tentang dirimu..."
+                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+                </div>
+                <div class="flex gap-3">
+                    <button type="button" @click="showMyProfile = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition text-sm font-medium">Simpan</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -261,12 +340,20 @@ function chatApp() {
         showNewGroup: false,
         showNewDM: false,
         showGroupInfo: false,
+        showViewProfile: false,
+        showMyProfile: false,
+        viewingUser: null,
+        profileBio: '{{ user.bio }}',
+        profilePreview: null,
+        profileFile: null,
         groupName: '',
         selectedMembers: [],
+        onlineUsers: [],
         ws: null,
 
         init() {
             this.loadConversations();
+            this.loadOnlineUsers();
             this.connectWebSocket();
         },
 
@@ -297,6 +384,11 @@ function chatApp() {
                             c.is_online = data.online ? 1 : 0;
                         }
                     });
+                    this.onlineUsers.forEach(u => {
+                        if (u.id === data.user_id) {
+                            u.is_online = data.online ? 1 : 0;
+                        }
+                    });
                 }
             };
 
@@ -308,6 +400,42 @@ function chatApp() {
         async loadConversations() {
             const res = await fetch('/api/conversations');
             this.conversations = await res.json();
+        },
+
+        async loadOnlineUsers() {
+            const res = await fetch('/api/users/online');
+            this.onlineUsers = await res.json();
+        },
+
+        viewProfile(u) {
+            this.viewingUser = u;
+            this.showViewProfile = true;
+        },
+
+        async startDMFromProfile() {
+            if (!this.viewingUser) return;
+            await this.startDM(this.viewingUser.id);
+            this.showViewProfile = false;
+        },
+
+        previewAvatar(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            this.profileFile = file;
+            this.profilePreview = URL.createObjectURL(file);
+        },
+
+        async saveProfile() {
+            const formData = new FormData();
+            formData.append('bio', this.profileBio || '');
+            if (this.profileFile) {
+                formData.append('avatar_file', this.profileFile);
+            }
+            const res = await fetch('/api/profile/update', {method: 'POST', body: formData});
+            if (res.ok) {
+                this.showMyProfile = false;
+                location.reload();
+            }
         },
 
         async selectConversation(conv) {
