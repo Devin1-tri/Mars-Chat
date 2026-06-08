@@ -55,6 +55,8 @@ def init_db():
             password_hash TEXT NOT NULL,
             display_name TEXT NOT NULL,
             avatar_color TEXT DEFAULT '#3B82F6',
+            avatar_url TEXT DEFAULT '',
+            bio TEXT DEFAULT '',
             is_online INTEGER DEFAULT 0,
             last_seen TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -106,6 +108,16 @@ def init_db():
         """)
 
 init_db()
+
+# ── Migration ──────────────────────────────────────────────────────────
+def migrate_db():
+    with get_db() as db:
+        cols = [row[1] for row in db.execute("PRAGMA table_info(users)").fetchall()]
+        if 'avatar_url' not in cols:
+            db.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT ''")
+        if 'bio' not in cols:
+            db.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
+migrate_db()
 
 # ── Helpers ─────────────────────────────────────────────────────────────
 AVATAR_COLORS = ['#EF4444', '#F97316', '#EAB308', '#22C55E', '#3B82F6', '#8B5CF6', '#EC4899', '#06B6D4']
@@ -526,6 +538,55 @@ async def websocket_endpoint(websocket: WebSocket, token: str):
         await manager.disconnect(user_id)
     except Exception:
         await manager.disconnect(user_id)
+
+# ═══════════════════════════════════════════════════════════════════════
+# ROUTES: API - USERS & PROFILE
+# ═══════════════════════════════════════════════════════════════════════
+@app.get("/api/users/online")
+@require_auth
+def api_users_online(request: Request):
+    user = request.state.user
+    with get_db() as db:
+        users = db.execute("""
+            SELECT id, username, display_name, avatar_color, avatar_url, bio, is_online, last_seen
+            FROM users WHERE id != ? ORDER BY is_online DESC, display_name ASC
+        """, (user["id"],)).fetchall()
+    return JSONResponse([dict(u) for u in users])
+
+@app.get("/api/profile/{user_id}")
+@require_auth
+def api_profile(request: Request, user_id: int):
+    with get_db() as db:
+        u = db.execute("SELECT id, username, display_name, avatar_color, avatar_url, bio, is_online, last_seen, created_at FROM users WHERE id=?", (user_id,)).fetchone()
+    if not u:
+        return JSONResponse({"error": "User not found"}, status_code=404)
+    return JSONResponse(dict(u))
+
+@app.post("/api/profile/update")
+@require_auth
+async def api_profile_update(request: Request):
+    user = request.state.user
+    form = await request.form()
+    bio = form.get("bio", "")
+    avatar_url = form.get("avatar_url", "")
+
+    # Handle file upload
+    avatar_file = form.get("avatar_file")
+    if avatar_file and hasattr(avatar_file, 'filename') and avatar_file.filename:
+        ext = os.path.splitext(avatar_file.filename)[1].lower()
+        if ext in {'.jpg', '.jpeg', '.png', '.gif', '.webp'}:
+            filename = f"avatar_{user['id']}_{uuid.uuid4().hex[:8]}{ext}"
+            filepath = os.path.join(UPLOAD_DIR, filename)
+            content = await avatar_file.read()
+            if len(content) <= 5 * 1024 * 1024:  # 5MB max for avatars
+                async with aiofiles.open(filepath, 'wb') as f:
+                    await f.write(content)
+                avatar_url = f"/static/uploads/{filename}"
+
+    with get_db() as db:
+        db.execute("UPDATE users SET bio=?, avatar_url=? WHERE id=?", (bio, avatar_url, user["id"]))
+
+    return JSONResponse({"ok": True})
 
 # ═══════════════════════════════════════════════════════════════════════
 # ROUTES: GROUP MANAGEMENT
