@@ -135,12 +135,12 @@ def get_current_user(request: Request):
 
 def require_auth(f):
     @wraps(f)
-    def decorated(request: Request, *args, **kwargs):
+    async def decorated(request: Request, *args, **kwargs):
         user = get_current_user(request)
         if not user:
             return RedirectResponse("/login", status_code=303)
         request.state.user = user
-        return f(request, *args, **kwargs)
+        return await f(request, *args, **kwargs)
     return decorated
 
 def format_time(val):
