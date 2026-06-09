@@ -10,6 +10,7 @@ import hashlib
 import secrets
 import json
 import uuid
+import inspect
 from datetime import datetime
 from contextlib import contextmanager
 from functools import wraps
@@ -133,6 +134,7 @@ def get_current_user(request: Request):
         user = db.execute("SELECT * FROM users WHERE username = ?", (token,)).fetchone()
     return user
 
+
 def require_auth(f):
     @wraps(f)
     async def decorated(request: Request, *args, **kwargs):
@@ -140,7 +142,10 @@ def require_auth(f):
         if not user:
             return RedirectResponse("/login", status_code=303)
         request.state.user = user
-        return await f(request, *args, **kwargs)
+        if inspect.iscoroutinefunction(f):
+            return await f(request, *args, **kwargs)
+        else:
+            return f(request, *args, **kwargs)
     return decorated
 
 def format_time(val):
