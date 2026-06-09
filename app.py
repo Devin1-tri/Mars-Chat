@@ -23,7 +23,17 @@ from fastapi.templating import Jinja2Templates
 import aiofiles
 
 # ── Config ──────────────────────────────────────────────────────────────
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+import sys
+if getattr(sys, 'frozen', False):
+    # Running as PyInstaller bundle
+    BASE_DIR = os.path.dirname(sys.executable)
+    TEMPLATE_DIR = os.path.join(sys._MEIPASS, 'templates')
+    STATIC_DIR = os.path.join(sys._MEIPASS, 'static')
+else:
+    BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+    TEMPLATE_DIR = os.path.join(BASE_DIR, 'templates')
+    STATIC_DIR = os.path.join(BASE_DIR, 'static')
+
 DB_PATH = os.path.join(BASE_DIR, "mars_chat.db")
 UPLOAD_DIR = os.path.join(BASE_DIR, "static", "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -31,8 +41,8 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 app = FastAPI(title="Mars Chat")
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
-templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+templates = Jinja2Templates(directory=TEMPLATE_DIR)
 
 # ── Database ────────────────────────────────────────────────────────────
 @contextmanager
@@ -461,6 +471,14 @@ def create_group(request: Request, name: str = Form(...), member_ids: str = Form
                        (conv_id, uid))
 
     return JSONResponse({"conversation_id": conv_id})
+
+# Serve uploads from BASE_DIR (writable location, separate from bundled static)
+@app.get("/static/uploads/{filename}")
+async def serve_upload(filename: str):
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    if os.path.exists(filepath):
+        return FileResponse(filepath)
+    return JSONResponse({"error": "Not found"}, status_code=404)
 
 @app.post("/api/upload/{conv_id}")
 @require_auth
