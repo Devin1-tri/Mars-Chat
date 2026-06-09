@@ -55,20 +55,21 @@
             </div>
             <!-- Search -->
             <input x-model="searchQuery" type="text" placeholder="Cari chat..."
-                   class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                   class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-violet-400 focus:border-transparent">
         </div>
 
         <!-- Conversation List -->
         <div class="flex-1 overflow-y-auto scrollbar-hide">
             <template x-for="conv in filteredConversations" :key="conv.id">
                 <div @click="selectConversation(conv)"
-                     class="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition"
+                     class="group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition"
                      :class="{'bg-gray-700/40': activeConv && activeConv.id === conv.id}">
                     <!-- Avatar -->
                     <div class="relative flex-shrink-0">
-                        <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold"
-                             :style="`background-color: ${conv.avatar_color}`"
-                             x-text="conv.type === 'group' ? '👥' : (conv.display_name || '?')[0]">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold overflow-hidden"
+                             :style="`background-color: ${conv.avatar_color}`">
+                            <img x-show="conv.avatar_url" :src="conv.avatar_url" class="w-full h-full object-cover">
+                            <span x-show="!conv.avatar_url" x-text="conv.type === 'group' ? '👥' : (conv.display_name || '?')[0]"></span>
                         </div>
                         <div x-show="conv.type === 'dm' && conv.is_online"
                              class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900"></div>
@@ -81,9 +82,34 @@
                         </div>
                         <div class="flex justify-between items-center mt-0.5">
                             <p class="text-gray-400 text-xs truncate" x-text="conv.last_message || 'Belum ada pesan'"></p>
-                            <span x-show="conv.unread > 0"
-                                  class="flex-shrink-0 ml-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
-                                  x-text="conv.unread"></span>
+                            <div class="flex items-center gap-1 flex-shrink-0 ml-2">
+                                <span x-show="conv.unread > 0"
+                                      class="bg-rose-400 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
+                                      x-text="conv.unread"></span>
+                                <!-- 3-dot menu -->
+                                <div class="relative" @click.stop>
+                                    <button @click="convMenuId = convMenuId === conv.id ? null : conv.id"
+                                            class="p-1 text-gray-500 hover:text-white hover:bg-gray-700/50 rounded transition opacity-0 group-hover:opacity-100">
+                                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                            <circle cx="12" cy="5" r="1.5"/>
+                                            <circle cx="12" cy="12" r="1.5"/>
+                                            <circle cx="12" cy="19" r="1.5"/>
+                                        </svg>
+                                    </button>
+                                    <div x-show="convMenuId === conv.id"
+                                         @click.outside="convMenuId = null"
+                                         x-transition
+                                         class="absolute right-0 top-8 z-20 bg-gray-800 border border-gray-600/50 rounded-lg shadow-xl py-1 min-w-[160px]">
+                                        <button @click="requestDeleteChat(conv.id); convMenuId = null"
+                                                class="w-full px-4 py-2 text-left text-sm text-rose-400 hover:bg-gray-700/50 transition flex items-center gap-2">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                            </svg>
+                                            Hapus Chat
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -154,7 +180,7 @@
             <template x-for="msg in messages" :key="msg.id">
                 <div :class="msg.user_id === {{ user.id }} ? 'flex justify-end' : 'flex justify-start'"
                      class="mb-1">
-                    <div :class="msg.user_id === {{ user.id }} ? 'msg-out bg-red-500/90 text-white' : 'msg-in bg-gray-700/80 text-gray-100'"
+                    <div :class="msg.user_id === {{ user.id }} ? 'msg-out bg-violet-500/90 text-white' : 'msg-in bg-gray-700/80 text-gray-100'"
                          class="max-w-[75%] px-4 py-2.5 shadow-lg">
                         <!-- Sender name in group -->
                         <p x-show="activeConv?.type === 'group' && msg.user_id !== {{ user.id }}"
@@ -179,7 +205,7 @@
                         </div>
                         <!-- Time -->
                         <p class="text-[10px] mt-1 text-right"
-                           :class="msg.user_id === {{ user.id }} ? 'text-red-200' : 'text-gray-400'"
+                           :class="msg.user_id === {{ user.id }} ? 'text-violet-200' : 'text-gray-400'"
                            x-text="formatTime(msg.created_at)"></p>
                     </div>
                 </div>
@@ -204,12 +230,12 @@
                 <div class="flex-1 relative">
                     <textarea x-model="newMessage" @keydown.enter.prevent="sendMessage()" @input="sendTyping()"
                               rows="1" placeholder="Ketik pesan..."
-                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none max-h-32"
+                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-violet-400 focus:border-transparent resize-none max-h-32"
                               style="min-height: 42px;"></textarea>
                 </div>
                 <!-- Send button -->
                 <button @click="sendMessage()"
-                        class="flex-shrink-0 p-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition shadow-lg shadow-red-500/25">
+                        class="flex-shrink-0 p-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition shadow-lg shadow-violet-500/25">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/></svg>
                 </button>
             </div>
@@ -219,7 +245,7 @@
     <!-- ═══ EMPTY STATE (no conversation selected) ═══ -->
     <div class="flex-1 flex items-center justify-center" x-show="!activeConv" x-cloak class="max-md:hidden">
         <div class="text-center">
-            <div class="text-6xl mb-4">🔴</div>
+            <div class="text-6xl mb-4">🪐</div>
             <h2 class="text-2xl font-bold text-white mb-2">Mars Chat</h2>
             <p class="text-gray-400">Pilih chat untuk mulai percakapan</p>
         </div>
@@ -233,7 +259,7 @@
                 <div>
                     <label class="block text-sm text-gray-300 mb-1">Nama Grup</label>
                     <input x-model="groupName" type="text" placeholder="Nama grup..."
-                           class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm focus:ring-2 focus:ring-red-500">
+                           class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm focus:ring-2 focus:ring-violet-400">
                 </div>
                 <div>
                     <label class="block text-sm text-gray-300 mb-2">Pilih Anggota</label>
@@ -241,7 +267,7 @@
                         {% for u in all_users %}
                         <label class="flex items-center gap-3 p-2 hover:bg-gray-700/30 rounded-lg cursor-pointer">
                             <input type="checkbox" value="{{ u.id }}" x-model="selectedMembers"
-                                   class="rounded border-gray-600 text-red-500 focus:ring-red-500">
+                                   class="rounded border-gray-600 text-violet-400 focus:ring-violet-400">
                             <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
                                  style="background-color: {{ u.avatar_color }}">{{ u.display_name[:1] }}</div>
                             <span class="text-white text-sm">{{ u.display_name }}</span>
@@ -252,7 +278,7 @@
             </div>
             <div class="flex gap-3 mt-6">
                 <button @click="showNewGroup = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
-                <button @click="createGroup()" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition text-sm font-medium">Buat</button>
+                <button @click="createGroup()" class="flex-1 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition text-sm font-medium">Buat</button>
             </div>
         </div>
     </div>
@@ -273,7 +299,7 @@
                     <span class="text-xs" :class="viewingUser?.is_online ? 'text-green-400' : 'text-gray-500'" x-text="viewingUser?.is_online ? 'Online' : 'Offline'"></span>
                 </div>
             </div>
-            <button @click="startDMFromProfile()" class="w-full mt-4 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition text-sm font-medium">
+            <button @click="startDMFromProfile()" class="w-full mt-4 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition text-sm font-medium">
                 💬 Kirim Pesan
             </button>
             <button @click="showViewProfile = false" class="w-full mt-2 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Tutup</button>
@@ -292,7 +318,7 @@
                             <img x-show="profilePreview || '{{ user.avatar_url }}'" :src="profilePreview || '{{ user.avatar_url }}'" class="w-full h-full object-cover">
                             <span x-show="!profilePreview && !'{{ user.avatar_url }}'">{{ user.display_name[:1] }}</span>
                         </div>
-                        <label class="absolute bottom-0 right-0 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-red-600 transition shadow-lg">
+                        <label class="absolute bottom-0 right-0 w-7 h-7 bg-violet-500 rounded-full flex items-center justify-center cursor-pointer hover:bg-violet-600 transition shadow-lg">
                             <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             <input type="file" class="hidden" accept="image/*" @change="previewAvatar($event)">
                         </label>
@@ -305,13 +331,32 @@
                 <div class="mb-4">
                     <label class="block text-sm text-gray-300 mb-1">Bio</label>
                     <textarea x-model="profileBio" rows="3" placeholder="Ceritakan tentang dirimu..."
-                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-red-500 resize-none"></textarea>
+                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-violet-400 resize-none"></textarea>
                 </div>
                 <div class="flex gap-3">
                     <button type="button" @click="showMyProfile = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl transition text-sm font-medium">Simpan</button>
+                    <button type="submit" class="flex-1 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition text-sm font-medium">Simpan</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- ═══ DELETE CONFIRMATION MODAL ═══ -->
+    <div x-show="showDeleteConfirm" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showDeleteConfirm = false">
+        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-sm mx-4 shadow-2xl">
+            <div class="text-center">
+                <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-500/20 flex items-center justify-center">
+                    <svg class="w-8 h-8 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold text-white mb-2">Hapus Chat?</h3>
+                <p class="text-gray-400 text-sm mb-6">Semua pesan dalam percakapan ini akan dihapus. Tindakan ini tidak dapat dibatalkan.</p>
+            </div>
+            <div class="flex gap-3">
+                <button @click="showDeleteConfirm = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
+                <button @click="confirmDeleteChat()" class="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition text-sm font-medium">Hapus</button>
+            </div>
         </div>
     </div>
 
@@ -341,6 +386,9 @@ function chatApp() {
         selectedMembers: [],
         onlineUsers: [],
         ws: null,
+        convMenuId: null,
+        showDeleteConfirm: false,
+        deleteConvId: null,
 
         init() {
             this.loadConversations();
@@ -545,6 +593,29 @@ function chatApp() {
                     return tb - ta;
                 });
             }
+        },
+
+        requestDeleteChat(convId) {
+            this.deleteConvId = convId;
+            this.showDeleteConfirm = true;
+        },
+
+        async confirmDeleteChat() {
+            const convId = this.deleteConvId;
+            const res = await fetch(`/api/conversations/${convId}/clear`, { method: 'POST' });
+            if (res.ok) {
+                if (this.activeConv && this.activeConv.id === convId) {
+                    this.messages = [];
+                }
+                const conv = this.conversations.find(c => c.id === convId);
+                if (conv) {
+                    conv.last_message = '';
+                    conv.last_time = null;
+                    conv.unread = 0;
+                }
+            }
+            this.showDeleteConfirm = false;
+            this.deleteConvId = null;
         },
 
         scrollToBottom() {

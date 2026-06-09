@@ -319,13 +319,14 @@ def api_conversations(request: Request):
             # Get display info
             if c["type"] == "dm":
                 other = db.execute("""
-                    SELECT u.id, u.display_name, u.avatar_color, u.is_online
+                    SELECT u.id, u.display_name, u.avatar_color, u.avatar_url, u.is_online
                     FROM users u JOIN conversation_members cm ON u.id = cm.user_id
                     WHERE cm.conversation_id = ? AND u.id != ?
                 """, (c["id"], user["id"])).fetchone()
                 if other:
                     conv["display_name"] = other["display_name"]
                     conv["avatar_color"] = other["avatar_color"]
+                    conv["avatar_url"] = other["avatar_url"]
                     conv["is_online"] = other["is_online"]
                     conv["other_id"] = other["id"]
                 else:
@@ -616,6 +617,18 @@ def leave_group(request: Request, conv_id: int):
     with get_db() as db:
         db.execute("DELETE FROM conversation_members WHERE conversation_id=? AND user_id=?",
                    (conv_id, user["id"]))
+    return JSONResponse({"ok": True})
+
+@app.post("/api/conversations/{conv_id}/clear")
+@require_auth
+def clear_conversation(request: Request, conv_id: int):
+    user = request.state.user
+    with get_db() as db:
+        member = db.execute("SELECT * FROM conversation_members WHERE conversation_id=? AND user_id=?",
+                           (conv_id, user["id"])).fetchone()
+        if not member:
+            return JSONResponse({"error": "Not a member"}, status_code=403)
+        db.execute("DELETE FROM messages WHERE conversation_id=?", (conv_id,))
     return JSONResponse({"ok": True})
 
 # ═══════════════════════════════════════════════════════════════════════
