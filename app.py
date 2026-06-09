@@ -629,6 +629,8 @@ def clear_conversation(request: Request, conv_id: int):
         if not member:
             return JSONResponse({"error": "Not a member"}, status_code=403)
         db.execute("DELETE FROM messages WHERE conversation_id=?", (conv_id,))
+        db.execute("DELETE FROM conversation_members WHERE conversation_id=?", (conv_id,))
+        db.execute("DELETE FROM conversations WHERE id=?", (conv_id,))
     return JSONResponse({"ok": True})
 
 # ═══════════════════════════════════════════════════════════════════════

@@ -11,6 +11,7 @@
         * { font-family: 'Inter', sans-serif; }
         [x-cloak] { display: none !important; }
         .bg-mars { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); }
+        .bg-mars-light { background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf8 50%, #dde4f5 100%); }
         .msg-in { border-radius: 16px 16px 16px 4px; }
         .msg-out { border-radius: 16px 16px 4px 16px; }
         .scrollbar-hide::-webkit-scrollbar { display: none; }
@@ -18,18 +19,22 @@
         .chat-scroll::-webkit-scrollbar { width: 4px; }
         .chat-scroll::-webkit-scrollbar-track { background: transparent; }
         .chat-scroll::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+        .theme-transition * { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important; }
     </style>
 </head>
-<body class="bg-mars h-screen overflow-hidden">
+<body x-data="{ darkMode: JSON.parse(localStorage.getItem('marsDarkMode') ?? 'true') }"
+      :class="darkMode ? 'bg-mars h-screen overflow-hidden' : 'bg-mars-light h-screen overflow-hidden'"
+      class="theme-transition">
 
 <div x-data="chatApp()" x-init="init()" class="h-screen flex">
 
     <!-- ═══ LEFT SIDEBAR ═══ -->
-    <div class="w-80 flex-shrink-0 bg-gray-900/80 border-r border-gray-700/50 flex flex-col h-full"
-         :class="{'max-md:hidden': activeConv}">
+    <div class="w-80 flex-shrink-0 flex flex-col h-full"
+         :class="[darkMode ? 'bg-gray-900/80 border-r border-gray-700/50' : 'bg-gray-100 border-r border-gray-200', {'max-md:hidden': activeConv}]">
 
         <!-- Header -->
-        <div class="flex-shrink-0 p-4 border-b border-gray-700/50">
+        <div class="flex-shrink-0 p-4 border-b"
+             :class="darkMode ? 'border-gray-700/50' : 'border-gray-200'">
             <div class="flex items-center justify-between mb-4">
                 <div class="flex items-center gap-3 cursor-pointer" @click="showMyProfile = true">
                     <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden"
@@ -37,33 +42,51 @@
                         {% if user.avatar_url %}<img src="{{ user.avatar_url }}" class="w-full h-full object-cover">{% else %}{{ user.display_name[:1] }}{% endif %}
                     </div>
                     <div>
-                        <h1 class="text-white font-semibold text-sm">{{ user.display_name }}</h1>
-                        <p class="text-gray-400 text-xs">{{ user.bio[:30] if user.bio else 'Online' }}</p>
+                        <h1 class="font-semibold text-sm" :class="darkMode ? 'text-white' : 'text-gray-900'">{{ user.display_name }}</h1>
+                        <p class="text-xs" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">{{ user.bio[:30] if user.bio else 'Online' }}</p>
                     </div>
                 </div>
                 <div class="flex gap-1">
-                    <button @click="showNewDM = true" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition" title="Chat Baru">
+                    <!-- Theme Toggle -->
+                    <button @click="toggleTheme()"
+                            class="p-2 rounded-lg transition"
+                            :class="darkMode ? 'text-gray-400 hover:text-yellow-300 hover:bg-gray-700/50' : 'text-gray-500 hover:text-amber-500 hover:bg-gray-200'"
+                            :title="darkMode ? 'Light Mode' : 'Dark Mode'">
+                        <svg x-show="darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                        <svg x-show="!darkMode" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
+                    </button>
+                    <button @click="showNewDM = true"
+                            class="p-2 rounded-lg transition"
+                            :class="darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'"
+                            title="Chat Baru">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
                     </button>
-                    <button @click="showNewGroup = true" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition" title="Buat Grup">
+                    <button @click="showNewGroup = true"
+                            class="p-2 rounded-lg transition"
+                            :class="darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200'"
+                            title="Buat Grup">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                     </button>
-                    <a href="/logout" class="p-2 text-gray-400 hover:text-red-400 hover:bg-gray-700/50 rounded-lg transition" title="Keluar">
+                    <a href="/logout"
+                       class="p-2 rounded-lg transition"
+                       :class="darkMode ? 'text-gray-400 hover:text-red-400 hover:bg-gray-700/50' : 'text-gray-500 hover:text-red-500 hover:bg-gray-200'"
+                       title="Keluar">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                     </a>
                 </div>
             </div>
             <!-- Search -->
             <input x-model="searchQuery" type="text" placeholder="Cari chat..."
-                   class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-violet-400 focus:border-transparent">
+                   class="w-full px-4 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent border"
+                   :class="darkMode ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'">
         </div>
 
         <!-- Conversation List -->
         <div class="flex-1 overflow-y-auto scrollbar-hide">
             <template x-for="conv in filteredConversations" :key="conv.id">
                 <div @click="selectConversation(conv)"
-                     class="group flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-700/30 transition"
-                     :class="{'bg-gray-700/40': activeConv && activeConv.id === conv.id}">
+                     class="group flex items-center gap-3 px-4 py-3 cursor-pointer transition"
+                     :class="activeConv && activeConv.id === conv.id ? (darkMode ? 'bg-gray-700/40' : 'bg-violet-100') : (darkMode ? 'hover:bg-gray-700/30' : 'hover:bg-gray-200')">
                     <!-- Avatar -->
                     <div class="relative flex-shrink-0">
                         <div class="w-12 h-12 rounded-full flex items-center justify-center text-white font-bold overflow-hidden"
@@ -72,16 +95,17 @@
                             <span x-show="!conv.avatar_url" x-text="conv.type === 'group' ? '👥' : (conv.display_name || '?')[0]"></span>
                         </div>
                         <div x-show="conv.type === 'dm' && conv.is_online"
-                             class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-gray-900"></div>
+                             class="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2"
+                             :class="darkMode ? 'border-gray-900' : 'border-gray-100'"></div>
                     </div>
                     <!-- Info -->
                     <div class="flex-1 min-w-0">
                         <div class="flex justify-between items-baseline">
-                            <h3 class="text-white font-medium text-sm truncate" x-text="conv.name || conv.display_name || 'Chat'"></h3>
-                            <span class="text-gray-500 text-xs flex-shrink-0 ml-2" x-text="conv.last_time ? formatTime(conv.last_time) : ''"></span>
+                            <h3 class="font-medium text-sm truncate" :class="darkMode ? 'text-white' : 'text-gray-900'" x-text="conv.name || conv.display_name || 'Chat'"></h3>
+                            <span class="text-xs flex-shrink-0 ml-2" :class="darkMode ? 'text-gray-500' : 'text-gray-400'" x-text="conv.last_time ? formatTime(conv.last_time) : ''"></span>
                         </div>
                         <div class="flex justify-between items-center mt-0.5">
-                            <p class="text-gray-400 text-xs truncate" x-text="conv.last_message || 'Belum ada pesan'"></p>
+                            <p class="text-xs truncate" :class="darkMode ? 'text-gray-400' : 'text-gray-500'" x-text="conv.last_message || 'Belum ada pesan'"></p>
                             <div class="flex items-center gap-1 flex-shrink-0 ml-2">
                                 <span x-show="conv.unread > 0"
                                       class="bg-rose-400 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center"
@@ -89,7 +113,8 @@
                                 <!-- 3-dot menu -->
                                 <div class="relative" @click.stop>
                                     <button @click="convMenuId = convMenuId === conv.id ? null : conv.id"
-                                            class="p-1 text-gray-500 hover:text-white hover:bg-gray-700/50 rounded transition opacity-0 group-hover:opacity-100">
+                                            class="p-1 rounded transition opacity-0 group-hover:opacity-100"
+                                            :class="darkMode ? 'text-gray-500 hover:text-white hover:bg-gray-700/50' : 'text-gray-400 hover:text-gray-700 hover:bg-gray-200'">
                                         <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
                                             <circle cx="12" cy="5" r="1.5"/>
                                             <circle cx="12" cy="12" r="1.5"/>
@@ -99,9 +124,11 @@
                                     <div x-show="convMenuId === conv.id"
                                          @click.outside="convMenuId = null"
                                          x-transition
-                                         class="absolute right-0 top-8 z-20 bg-gray-800 border border-gray-600/50 rounded-lg shadow-xl py-1 min-w-[160px]">
+                                         class="absolute right-0 top-8 z-20 rounded-lg shadow-xl py-1 min-w-[160px] border"
+                                         :class="darkMode ? 'bg-gray-800 border-gray-600/50' : 'bg-white border-gray-200'">
                                         <button @click="requestDeleteChat(conv.id); convMenuId = null"
-                                                class="w-full px-4 py-2 text-left text-sm text-rose-400 hover:bg-gray-700/50 transition flex items-center gap-2">
+                                                class="w-full px-4 py-2 text-left text-sm text-rose-400 transition flex items-center gap-2"
+                                                :class="darkMode ? 'hover:bg-gray-700/50' : 'hover:bg-gray-100'">
                                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                             </svg>
@@ -114,37 +141,41 @@
                     </div>
                 </div>
             </template>
-            <div x-show="filteredConversations.length === 0" class="text-center py-12 text-gray-500">
+            <div x-show="filteredConversations.length === 0" class="text-center py-12" :class="darkMode ? 'text-gray-500' : 'text-gray-400'">
                 <p class="text-3xl mb-2">💬</p>
                 <p class="text-sm">Belum ada chat</p>
             </div>
         </div>
         <!-- Users Directory -->
-        <div class="flex-shrink-0 border-t border-gray-700/50" x-data="{expanded: false}">
-            <button @click="expanded = !expanded" class="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-700/30 transition">
+        <div class="flex-shrink-0 border-t" :class="darkMode ? 'border-gray-700/50' : 'border-gray-200'" x-data="{expanded: false}">
+            <button @click="expanded = !expanded"
+                    class="w-full flex items-center justify-between px-4 py-2.5 transition"
+                    :class="darkMode ? 'hover:bg-gray-700/30' : 'hover:bg-gray-200'">
                 <div class="flex items-center gap-2">
-                    <span class="text-xs text-gray-400 font-medium uppercase tracking-wider">Users</span>
+                    <span class="text-xs font-medium uppercase tracking-wider" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">Users</span>
                     <span class="bg-green-500/20 text-green-400 text-[10px] px-1.5 py-0.5 rounded-full font-medium"
                           x-text="onlineUsers.filter(u => u.is_online).length + ' online'"></span>
                 </div>
-                <svg class="w-4 h-4 text-gray-500 transition-transform" :class="{'rotate-180': expanded}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                <svg class="w-4 h-4 transition-transform" :class="[darkMode ? 'text-gray-500' : 'text-gray-400', {'rotate-180': expanded}]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
             <div x-show="expanded" class="px-3 pb-3">
                 <div class="space-y-1 max-h-48 overflow-y-auto scrollbar-hide">
                     <template x-for="u in onlineUsers" :key="u.id">
-                        <div @click="viewProfile(u)" class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-700/30 cursor-pointer transition">
+                        <div @click="viewProfile(u)"
+                             class="flex items-center gap-3 px-2 py-2 rounded-lg cursor-pointer transition"
+                             :class="darkMode ? 'hover:bg-gray-700/30' : 'hover:bg-gray-200'">
                             <div class="relative flex-shrink-0">
                                 <div class="w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-xs overflow-hidden"
                                      :style="`background-color: ${u.avatar_color}`">
                                     <img x-show="u.avatar_url" :src="u.avatar_url" class="w-full h-full object-cover">
                                     <span x-show="!u.avatar_url" x-text="(u.display_name || '?')[0]"></span>
                                 </div>
-                                <div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-gray-900"
-                                     :class="u.is_online ? 'bg-green-500' : 'bg-gray-600'"></div>
+                                <div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2"
+                                     :class="[u.is_online ? 'bg-green-500' : 'bg-gray-600', darkMode ? 'border-gray-900' : 'border-gray-100']"></div>
                             </div>
                             <div class="flex-1 min-w-0">
-                                <p class="text-sm text-white truncate" x-text="u.display_name"></p>
-                                <p class="text-[10px] truncate" :class="u.is_online ? 'text-green-400' : 'text-gray-500'" x-text="u.bio || (u.is_online ? 'Online' : 'Offline')"></p>
+                                <p class="text-sm truncate" :class="darkMode ? 'text-white' : 'text-gray-900'" x-text="u.display_name"></p>
+                                <p class="text-[10px] truncate" :class="u.is_online ? 'text-green-400' : (darkMode ? 'text-gray-500' : 'text-gray-400')" x-text="u.bio || (u.is_online ? 'Online' : 'Offline')"></p>
                             </div>
                         </div>
                     </template>
@@ -154,8 +185,11 @@
     </div>
     <div class="flex-1 flex flex-col h-full" x-show="activeConv" x-cloak>
         <!-- Chat Header -->
-        <div class="flex-shrink-0 bg-gray-900/80 border-b border-gray-700/50 px-4 py-3 flex items-center gap-3">
-            <button @click="activeConv = null" class="md:hidden p-1 text-gray-400 hover:text-white">
+        <div class="flex-shrink-0 px-4 py-3 flex items-center gap-3 border-b"
+             :class="darkMode ? 'bg-gray-900/80 border-gray-700/50' : 'bg-white border-gray-200'">
+            <button @click="activeConv = null"
+                    class="md:hidden p-1"
+                    :class="darkMode ? 'text-gray-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
             </button>
             <div class="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold"
@@ -163,11 +197,13 @@
                  x-text="activeConv?.type === 'group' ? '👥' : (activeConv?.display_name || '?')[0]">
             </div>
             <div>
-                <h2 class="text-white font-semibold text-sm" x-text="activeConv?.name || activeConv?.display_name || 'Chat'"></h2>
-                <p class="text-gray-400 text-xs" x-text="activeConv?.type === 'group' ? `${activeConv?.member_count || 0} anggota` : (activeConv?.is_online ? 'Online' : 'Offline')"></p>
+                <h2 class="font-semibold text-sm" :class="darkMode ? 'text-white' : 'text-gray-900'" x-text="activeConv?.name || activeConv?.display_name || 'Chat'"></h2>
+                <p class="text-xs" :class="darkMode ? 'text-gray-400' : 'text-gray-500'" x-text="activeConv?.type === 'group' ? `${activeConv?.member_count || 0} anggota` : (activeConv?.is_online ? 'Online' : 'Offline')"></p>
             </div>
             <div x-show="activeConv?.type === 'group'" class="ml-auto">
-                <button @click="showGroupInfo = !showGroupInfo" class="p-2 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-lg transition">
+                <button @click="showGroupInfo = !showGroupInfo"
+                        class="p-2 rounded-lg transition"
+                        :class="darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                 </button>
             </div>
@@ -175,12 +211,13 @@
 
         <!-- Messages -->
         <div id="chatMessages" class="flex-1 overflow-y-auto chat-scroll p-4 space-y-1"
+             :class="darkMode ? '' : 'bg-gray-50'"
              @scroll="handleScroll($event)">
-            <div x-show="loadingMessages" class="text-center py-8 text-gray-500 text-sm">Memuat pesan...</div>
+            <div x-show="loadingMessages" class="text-center py-8 text-sm" :class="darkMode ? 'text-gray-500' : 'text-gray-400'">Memuat pesan...</div>
             <template x-for="msg in messages" :key="msg.id">
                 <div :class="msg.user_id === {{ user.id }} ? 'flex justify-end' : 'flex justify-start'"
                      class="mb-1">
-                    <div :class="msg.user_id === {{ user.id }} ? 'msg-out bg-violet-500/90 text-white' : 'msg-in bg-gray-700/80 text-gray-100'"
+                    <div :class="msg.user_id === {{ user.id }} ? 'msg-out bg-violet-500/90 text-white' : (darkMode ? 'msg-in bg-gray-700/80 text-gray-100' : 'msg-in bg-white text-gray-800 border border-gray-200')"
                          class="max-w-[75%] px-4 py-2.5 shadow-lg">
                         <!-- Sender name in group -->
                         <p x-show="activeConv?.type === 'group' && msg.user_id !== {{ user.id }}"
@@ -205,24 +242,27 @@
                         </div>
                         <!-- Time -->
                         <p class="text-[10px] mt-1 text-right"
-                           :class="msg.user_id === {{ user.id }} ? 'text-violet-200' : 'text-gray-400'"
+                           :class="msg.user_id === {{ user.id }} ? 'text-violet-200' : (darkMode ? 'text-gray-400' : 'text-gray-500')"
                            x-text="formatTime(msg.created_at)"></p>
                     </div>
                 </div>
             </template>
             <!-- Typing indicator -->
             <div x-show="typingUser" class="flex justify-start">
-                <div class="bg-gray-700/80 text-gray-300 px-4 py-2.5 rounded-2xl text-sm">
+                <div class="px-4 py-2.5 rounded-2xl text-sm"
+                     :class="darkMode ? 'bg-gray-700/80 text-gray-300' : 'bg-white text-gray-600 border border-gray-200'">
                     <span x-text="typingUser" class="font-medium"></span> sedang mengetik...
                 </div>
             </div>
         </div>
 
         <!-- Input Area -->
-        <div class="flex-shrink-0 bg-gray-900/80 border-t border-gray-700/50 p-3">
+        <div class="flex-shrink-0 border-t p-3"
+             :class="darkMode ? 'bg-gray-900/80 border-gray-700/50' : 'bg-white border-gray-200'">
             <div class="flex items-end gap-2">
                 <!-- File upload -->
-                <label class="flex-shrink-0 p-2.5 text-gray-400 hover:text-white hover:bg-gray-700/50 rounded-xl cursor-pointer transition">
+                <label class="flex-shrink-0 p-2.5 rounded-xl cursor-pointer transition"
+                       :class="darkMode ? 'text-gray-400 hover:text-white hover:bg-gray-700/50' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100'">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                     <input type="file" class="hidden" @change="uploadFile($event)" accept="*/*">
                 </label>
@@ -230,7 +270,8 @@
                 <div class="flex-1 relative">
                     <textarea x-model="newMessage" @keydown.enter.prevent="sendMessage()" @input="sendTyping()"
                               rows="1" placeholder="Ketik pesan..."
-                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-violet-400 focus:border-transparent resize-none max-h-32"
+                              class="w-full px-4 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-violet-400 focus:border-transparent resize-none max-h-32 border"
+                              :class="darkMode ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'"
                               style="min-height: 42px;"></textarea>
                 </div>
                 <!-- Send button -->
@@ -243,41 +284,46 @@
     </div>
 
     <!-- ═══ EMPTY STATE (no conversation selected) ═══ -->
-    <div class="flex-1 flex items-center justify-center" x-show="!activeConv" x-cloak class="max-md:hidden">
+    <div class="flex-1 flex items-center justify-center max-md:hidden" x-show="!activeConv" x-cloak>
         <div class="text-center">
             <div class="text-6xl mb-4">🪐</div>
-            <h2 class="text-2xl font-bold text-white mb-2">Mars Chat</h2>
-            <p class="text-gray-400">Pilih chat untuk mulai percakapan</p>
+            <h2 class="text-2xl font-bold mb-2" :class="darkMode ? 'text-white' : 'text-gray-900'">Mars Chat</h2>
+            <p :class="darkMode ? 'text-gray-400' : 'text-gray-500'">Pilih chat untuk mulai percakapan</p>
         </div>
     </div>
 
     <!-- ═══ NEW GROUP MODAL ═══ -->
     <div x-show="showNewGroup" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h3 class="text-lg font-semibold text-white mb-4">Buat Grup Baru</h3>
+        <div class="rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border"
+             :class="darkMode ? 'bg-gray-900 border-gray-700/50' : 'bg-white border-gray-200'">
+            <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-white' : 'text-gray-900'">Buat Grup Baru</h3>
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm text-gray-300 mb-1">Nama Grup</label>
+                    <label class="block text-sm mb-1" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">Nama Grup</label>
                     <input x-model="groupName" type="text" placeholder="Nama grup..."
-                           class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm focus:ring-2 focus:ring-violet-400">
+                           class="w-full px-4 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-violet-400 border"
+                           :class="darkMode ? 'bg-gray-800/50 border-gray-600/50 text-white' : 'bg-white border-gray-300 text-gray-900'">
                 </div>
                 <div>
-                    <label class="block text-sm text-gray-300 mb-2">Pilih Anggota</label>
+                    <label class="block text-sm mb-2" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">Pilih Anggota</label>
                     <div class="max-h-48 overflow-y-auto space-y-1">
                         {% for u in all_users %}
-                        <label class="flex items-center gap-3 p-2 hover:bg-gray-700/30 rounded-lg cursor-pointer">
+                        <label class="flex items-center gap-3 p-2 rounded-lg cursor-pointer"
+                               :class="darkMode ? 'hover:bg-gray-700/30' : 'hover:bg-gray-100'">
                             <input type="checkbox" value="{{ u.id }}" x-model="selectedMembers"
                                    class="rounded border-gray-600 text-violet-400 focus:ring-violet-400">
                             <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold"
                                  style="background-color: {{ u.avatar_color }}">{{ u.display_name[:1] }}</div>
-                            <span class="text-white text-sm">{{ u.display_name }}</span>
+                            <span class="text-sm" :class="darkMode ? 'text-white' : 'text-gray-900'">{{ u.display_name }}</span>
                         </label>
                         {% endfor %}
                     </div>
                 </div>
             </div>
             <div class="flex gap-3 mt-6">
-                <button @click="showNewGroup = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
+                <button @click="showNewGroup = false"
+                        class="flex-1 py-2.5 rounded-xl transition text-sm"
+                        :class="darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'">Batal</button>
                 <button @click="createGroup()" class="flex-1 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition text-sm font-medium">Buat</button>
             </div>
         </div>
@@ -285,15 +331,16 @@
 
     <!-- ═══ VIEW PROFILE MODAL ═══ -->
     <div x-show="showViewProfile" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showViewProfile = false">
-        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-sm mx-4 shadow-2xl">
+        <div class="rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl border"
+             :class="darkMode ? 'bg-gray-900 border-gray-700/50' : 'bg-white border-gray-200'">
             <div class="text-center">
                 <div class="w-20 h-20 rounded-full flex items-center justify-center text-white font-bold text-2xl mx-auto mb-3 overflow-hidden"
                      :style="`background-color: ${viewingUser?.avatar_color}`">
                     <img x-show="viewingUser?.avatar_url" :src="viewingUser?.avatar_url" class="w-full h-full object-cover">
                     <span x-show="!viewingUser?.avatar_url" x-text="(viewingUser?.display_name || '?')[0]"></span>
                 </div>
-                <h3 class="text-lg font-semibold text-white" x-text="viewingUser?.display_name"></h3>
-                <p class="text-gray-400 text-sm mt-1" x-text="viewingUser?.bio || 'Belum ada bio'"></p>
+                <h3 class="text-lg font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'" x-text="viewingUser?.display_name"></h3>
+                <p class="text-sm mt-1" :class="darkMode ? 'text-gray-400' : 'text-gray-500'" x-text="viewingUser?.bio || 'Belum ada bio'"></p>
                 <div class="flex items-center justify-center gap-2 mt-2">
                     <div class="w-2 h-2 rounded-full" :class="viewingUser?.is_online ? 'bg-green-500' : 'bg-gray-500'"></div>
                     <span class="text-xs" :class="viewingUser?.is_online ? 'text-green-400' : 'text-gray-500'" x-text="viewingUser?.is_online ? 'Online' : 'Offline'"></span>
@@ -302,14 +349,17 @@
             <button @click="startDMFromProfile()" class="w-full mt-4 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition text-sm font-medium">
                 💬 Kirim Pesan
             </button>
-            <button @click="showViewProfile = false" class="w-full mt-2 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Tutup</button>
+            <button @click="showViewProfile = false"
+                    class="w-full mt-2 py-2.5 rounded-xl transition text-sm"
+                    :class="darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'">Tutup</button>
         </div>
     </div>
 
     <!-- ═══ EDIT PROFILE MODAL ═══ -->
     <div x-show="showMyProfile" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showMyProfile = false">
-        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-md mx-4 shadow-2xl">
-            <h3 class="text-lg font-semibold text-white mb-4">Profil Saya</h3>
+        <div class="rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border"
+             :class="darkMode ? 'bg-gray-900 border-gray-700/50' : 'bg-white border-gray-200'">
+            <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-white' : 'text-gray-900'">Profil Saya</h3>
             <form @submit.prevent="saveProfile()">
                 <div class="flex items-center gap-4 mb-4">
                     <div class="relative">
@@ -324,17 +374,20 @@
                         </label>
                     </div>
                     <div>
-                        <p class="text-white font-semibold">{{ user.display_name }}</p>
-                        <p class="text-gray-400 text-sm">@{{ user.username }}</p>
+                        <p class="font-semibold" :class="darkMode ? 'text-white' : 'text-gray-900'">{{ user.display_name }}</p>
+                        <p class="text-sm" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">@{{ user.username }}</p>
                     </div>
                 </div>
                 <div class="mb-4">
-                    <label class="block text-sm text-gray-300 mb-1">Bio</label>
+                    <label class="block text-sm mb-1" :class="darkMode ? 'text-gray-300' : 'text-gray-600'">Bio</label>
                     <textarea x-model="profileBio" rows="3" placeholder="Ceritakan tentang dirimu..."
-                              class="w-full px-4 py-2.5 bg-gray-800/50 border border-gray-600/50 rounded-xl text-white text-sm placeholder-gray-500 focus:ring-2 focus:ring-violet-400 resize-none"></textarea>
+                              class="w-full px-4 py-2.5 rounded-xl text-sm focus:ring-2 focus:ring-violet-400 resize-none border"
+                              :class="darkMode ? 'bg-gray-800/50 border-gray-600/50 text-white placeholder-gray-500' : 'bg-white border-gray-300 text-gray-900 placeholder-gray-400'"></textarea>
                 </div>
                 <div class="flex gap-3">
-                    <button type="button" @click="showMyProfile = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
+                    <button type="button" @click="showMyProfile = false"
+                            class="flex-1 py-2.5 rounded-xl transition text-sm"
+                            :class="darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'">Batal</button>
                     <button type="submit" class="flex-1 py-2.5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition text-sm font-medium">Simpan</button>
                 </div>
             </form>
@@ -343,20 +396,47 @@
 
     <!-- ═══ DELETE CONFIRMATION MODAL ═══ -->
     <div x-show="showDeleteConfirm" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showDeleteConfirm = false">
-        <div class="bg-gray-900 rounded-2xl border border-gray-700/50 p-6 w-full max-w-sm mx-4 shadow-2xl">
+        <div class="rounded-2xl p-6 w-full max-w-sm mx-4 shadow-2xl border"
+             :class="darkMode ? 'bg-gray-900 border-gray-700/50' : 'bg-white border-gray-200'">
             <div class="text-center">
                 <div class="w-16 h-16 mx-auto mb-4 rounded-full bg-rose-500/20 flex items-center justify-center">
                     <svg class="w-8 h-8 text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                     </svg>
                 </div>
-                <h3 class="text-lg font-semibold text-white mb-2">Hapus Chat?</h3>
-                <p class="text-gray-400 text-sm mb-6">Semua pesan dalam percakapan ini akan dihapus. Tindakan ini tidak dapat dibatalkan.</p>
+                <h3 class="text-lg font-semibold mb-2" :class="darkMode ? 'text-white' : 'text-gray-900'">Hapus Chat?</h3>
+                <p class="text-sm mb-6" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">Percakapan ini akan dihapus sepenuhnya. Tindakan ini tidak dapat dibatalkan.</p>
             </div>
             <div class="flex gap-3">
-                <button @click="showDeleteConfirm = false" class="flex-1 py-2.5 bg-gray-700 hover:bg-gray-600 text-white rounded-xl transition text-sm">Batal</button>
+                <button @click="showDeleteConfirm = false"
+                        class="flex-1 py-2.5 rounded-xl transition text-sm"
+                        :class="darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'">Batal</button>
                 <button @click="confirmDeleteChat()" class="flex-1 py-2.5 bg-rose-500 hover:bg-rose-600 text-white rounded-xl transition text-sm font-medium">Hapus</button>
             </div>
+        </div>
+    </div>
+
+    <!-- ═══ NEW DM MODAL ═══ -->
+    <div x-show="showNewDM" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showNewDM = false">
+        <div class="rounded-2xl p-6 w-full max-w-md mx-4 shadow-2xl border"
+             :class="darkMode ? 'bg-gray-900 border-gray-700/50' : 'bg-white border-gray-200'">
+            <h3 class="text-lg font-semibold mb-4" :class="darkMode ? 'text-white' : 'text-gray-900'">Chat Baru</h3>
+            <div class="max-h-64 overflow-y-auto space-y-1">
+                <template x-for="u in onlineUsers.filter(u => u.id !== {{ user.id }})" :key="u.id">
+                    <div @click="startDM(u.id); showNewDM = false"
+                         class="flex items-center gap-3 p-2 rounded-lg cursor-pointer transition"
+                         :class="darkMode ? 'hover:bg-gray-700/30' : 'hover:bg-gray-100'">
+                        <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-bold"
+                             :style="`background-color: ${u.avatar_color}`">
+                            <span x-text="(u.display_name || '?')[0]"></span>
+                        </div>
+                        <span class="text-sm" :class="darkMode ? 'text-white' : 'text-gray-900'" x-text="u.display_name"></span>
+                    </div>
+                </template>
+            </div>
+            <button @click="showNewDM = false"
+                    class="w-full mt-4 py-2.5 rounded-xl transition text-sm"
+                    :class="darkMode ? 'bg-gray-700 hover:bg-gray-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'">Tutup</button>
         </div>
     </div>
 
@@ -390,10 +470,21 @@ function chatApp() {
         showDeleteConfirm: false,
         deleteConvId: null,
 
+        get darkMode() {
+            return this.$el.closest('[x-data]').__x.$data.darkMode ?? document.body.__x.$data.darkMode ?? true;
+        },
+
         init() {
             this.loadConversations();
             this.loadOnlineUsers();
             this.connectWebSocket();
+        },
+
+        toggleTheme() {
+            // Access darkMode from the body-level x-data
+            const bodyData = Alpine.$data(document.body);
+            bodyData.darkMode = !bodyData.darkMode;
+            localStorage.setItem('marsDarkMode', JSON.stringify(bodyData.darkMode));
         },
 
         connectWebSocket() {
@@ -604,14 +695,12 @@ function chatApp() {
             const convId = this.deleteConvId;
             const res = await fetch(`/api/conversations/${convId}/clear`, { method: 'POST' });
             if (res.ok) {
+                // Remove conversation from the list entirely
+                this.conversations = this.conversations.filter(c => c.id !== convId);
+                // Clear active conversation if it was the deleted one
                 if (this.activeConv && this.activeConv.id === convId) {
+                    this.activeConv = null;
                     this.messages = [];
-                }
-                const conv = this.conversations.find(c => c.id === convId);
-                if (conv) {
-                    conv.last_message = '';
-                    conv.last_time = null;
-                    conv.unread = 0;
                 }
             }
             this.showDeleteConfirm = false;
