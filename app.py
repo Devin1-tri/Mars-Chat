@@ -198,13 +198,17 @@ class ConnectionManager:
         msg = json.dumps(message)
         with get_db() as db:
             members = db.execute("SELECT user_id FROM conversation_members WHERE conversation_id=?", (conv_id,)).fetchall()
+        dead = []
         for m in members:
             uid = m["user_id"]
             if uid != exclude_user and uid in self.active:
                 try:
                     await self.active[uid].send_text(msg)
-                except:
-                    pass
+                except Exception:
+                    dead.append(uid)
+        for uid in dead:
+            if uid in self.active:
+                del self.active[uid]
 
     async def send_to_user(self, user_id: int, message: dict):
         if user_id in self.active:
