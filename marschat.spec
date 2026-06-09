@@ -33,6 +33,8 @@ a = Analysis(
         'jinja2',
         'starlette',
         'starlette.templating',
+        'webview',
+        'webview.platforms',
     ],
     hookspath=[],
     hooksconfig={},
