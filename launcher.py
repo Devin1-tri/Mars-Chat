@@ -44,12 +44,20 @@ def wait_for_server(host='localhost', port=8080, timeout=30):
 if __name__ == '__main__':
     logger.info("Mars Chat starting...")
 
+    # Redirect stdout/stderr to log file so uvicorn's isatty() check works
+    if sys.stderr is None or not hasattr(sys.stderr, 'isatty'):
+        log_file = open(log_path, 'a', encoding='utf-8')
+        sys.stdout = log_file
+        sys.stderr = log_file
+
     # Start uvicorn in background thread
     def run_server():
         try:
             import uvicorn
             from app import app
-            uvicorn.run(app, host="0.0.0.0", port=8080, log_level="warning")
+            config = uvicorn.Config(app, host="0.0.0.0", port=8080, log_level="warning")
+            server = uvicorn.Server(config)
+            server.run()
         except Exception as e:
             logger.exception("Server crashed")
 
