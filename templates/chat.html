@@ -266,6 +266,24 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                     <input type="file" class="hidden" @change="uploadFile($event)" accept="*/*">
                 </label>
+                <!-- Emoji picker -->
+                <div class="relative flex-shrink-0" @click.outside="showEmoji = false">
+                    <button @click="showEmoji = !showEmoji" class="p-2.5 rounded-xl cursor-pointer transition text-xl leading-none"
+                            :class="darkMode ? 'hover:text-white hover:bg-gray-700/50' : 'hover:text-gray-900 hover:bg-gray-100'"
+                            :style="showEmoji ? (darkMode ? 'color:#a78bfa' : 'color:#7c3aed') : ''">😀</button>
+                    <div x-show="showEmoji" x-cloak x-transition
+                         class="absolute bottom-14 left-0 z-40 w-72 max-h-64 overflow-y-auto rounded-xl shadow-2xl border p-3"
+                         :class="darkMode ? 'bg-gray-800 border-gray-700/50' : 'bg-white border-gray-200'">
+                        <div class="grid grid-cols-8 gap-1">
+                            <template x-for="e in emojiList" :key="e">
+                                <button @click="newMessage += e; showEmoji = false"
+                                        class="text-xl p-1 rounded-lg hover:scale-125 transition-transform"
+                                        :class="darkMode ? 'hover:bg-gray-700/60' : 'hover:bg-gray-100'"
+                                        x-text="e"></button>
+                            </template>
+                        </div>
+                    </div>
+                </div>
                 <!-- Text input -->
                 <div class="flex-1 relative">
                     <textarea x-model="newMessage" @keydown.enter.prevent="sendMessage()" @input="sendTyping()"
@@ -470,6 +488,17 @@ function chatApp() {
         convMenuId: null,
         showDeleteConfirm: false,
         deleteConvId: null,
+        showEmoji: false,
+        emojiList: [
+            '😀','😂','🤣','😊','😍','🥰','😘','😜','😎','🤔',
+            '😤','😢','😭','😱','🥺','😏','🙄','😴','🤗','🤩',
+            '😇','😈','🫠','🥳','😋','🤫','🤭','😐','😬','🫡',
+            '👍','👎','👏','🙌','🤝','✌️','🤞','💪','🫶','👋',
+            '❤️','🧡','💛','💚','💙','💜','🖤','🤍','💕','💖',
+            '🔥','⭐','✨','💫','🎉','🎊','💯','🏆','👑','💎',
+            '🌈','☀️','🌙','⚡','🌊','🍕','🍔','☕','🍺','🎶',
+            '🚀','🪐','🌍','💡','📌','🎯','🛡️','💻','📱','🎮'
+        ],
 
         init() {
             this.loadConversations();
