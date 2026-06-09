@@ -41,7 +41,7 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
 app = FastAPI(title="Mars Chat")
-app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+app.mount("/static/assets", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATE_DIR)
 
 # ── Database ────────────────────────────────────────────────────────────
