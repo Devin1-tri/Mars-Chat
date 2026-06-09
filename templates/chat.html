@@ -34,18 +34,17 @@
         <!-- Header -->
         <div class="flex-shrink-0 p-4 border-b"
              :class="darkMode ? 'border-gray-700/50' : 'border-gray-300'">
-            <div class="flex items-center justify-between mb-4">
-                <div class="flex items-center gap-3 cursor-pointer" @click="showMyProfile = true">
-                    <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden"
-                         style="background-color: {{ user.avatar_color }}">
-                        {% if user.avatar_url %}<img src="{{ user.avatar_url }}" class="w-full h-full object-cover">{% else %}{{ user.display_name[:1] }}{% endif %}
-                    </div>
-                    <div>
-                        <h1 class="font-semibold text-sm" :class="darkMode ? 'text-white' : 'text-gray-900'">{{ user.display_name }}</h1>
-                        <p class="text-xs" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">{{ user.bio[:30] if user.bio else 'Online' }}</p>
-                    </div>
+            <div class="flex items-center gap-3 mb-3">
+                <div class="relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm overflow-hidden flex-shrink-0 cursor-pointer"
+                     style="background-color: {{ user.avatar_color }}" @click="showMyProfile = true">
+                    {% if user.avatar_url %}<img src="{{ user.avatar_url }}" class="w-full h-full object-cover">{% else %}{{ user.display_name[:1] }}{% endif %}
                 </div>
-                <div class="flex gap-1">
+                <div class="min-w-0 flex-1 cursor-pointer" @click="showMyProfile = true">
+                    <h1 class="font-semibold text-sm truncate" :class="darkMode ? 'text-white' : 'text-gray-900'">{{ user.display_name }}</h1>
+                    <p class="text-xs truncate" :class="darkMode ? 'text-gray-400' : 'text-gray-500'">{{ user.bio[:30] if user.bio else 'Online' }}</p>
+                </div>
+            </div>
+            <div class="flex gap-1 justify-end">
                     <!-- Theme Toggle -->
                     <button @click="toggleTheme()"
                             class="p-2 rounded-lg transition"
@@ -80,7 +79,6 @@
                        title="Keluar">
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
                     </a>
-                </div>
             </div>
             <!-- Search -->
             <input x-model="searchQuery" type="text" placeholder="Cari chat..."
