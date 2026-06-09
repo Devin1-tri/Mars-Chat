@@ -1,73 +1,81 @@
 """
 Mars Chat Launcher
-Starts the server and opens a native desktop window automatically.
+Starts the server and opens a native window. No console shown.
 """
 import os
 import sys
+import logging
 import threading
 import time
-import urllib.request
-import urllib.error
 
 # Fix paths for PyInstaller bundle
 if getattr(sys, 'frozen', False):
     BASE_DIR = os.path.dirname(sys.executable)
-    # Add bundle dir to path so app module can be found
     sys.path.insert(0, sys._MEIPASS)
     os.chdir(sys._MEIPASS)
 else:
     BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Ensure data directories exist in the exe's directory
+# Log to file (no console window)
+log_path = os.path.join(BASE_DIR, 'marschat.log')
+logging.basicConfig(
+    filename=log_path,
+    level=logging.INFO,
+    format='%(asctime)s [%(levelname)s] %(message)s',
+)
+logger = logging.getLogger('marschat')
+
+# Ensure data directories exist
 os.makedirs(os.path.join(BASE_DIR, 'static', 'uploads'), exist_ok=True)
 
-SERVER_URL = 'http://localhost:8080'
-
-
-def start_server():
-    """Run uvicorn server (called in a daemon thread)."""
-    import uvicorn
-    from app import app
-    uvicorn.run(app, host='0.0.0.0', port=8080, log_level='info')
-
-
-def wait_for_server(url, timeout=30):
-    """Poll the server until it responds or timeout is reached."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
+def wait_for_server(host='localhost', port=8080, timeout=30):
+    """Wait until the server is ready."""
+    import urllib.request
+    import urllib.error
+    start = time.time()
+    while time.time() - start < timeout:
         try:
-            urllib.request.urlopen(url, timeout=1)
+            urllib.request.urlopen(f'http://{host}:{port}/login', timeout=2)
             return True
         except (urllib.error.URLError, ConnectionError, OSError):
             time.sleep(0.3)
     return False
 
-
 if __name__ == '__main__':
-    print('=' * 50)
-    print('  Mars Chat Server')
-    print(f'  Running on {SERVER_URL}')
-    print('  Press Ctrl+C to stop')
-    print('=' * 50)
+    logger.info("Mars Chat starting...")
 
-    # Start uvicorn in a daemon thread
-    server_thread = threading.Thread(target=start_server, daemon=True)
+    # Start uvicorn in background thread
+    def run_server():
+        try:
+            import uvicorn
+            from app import app
+            uvicorn.run(app, host="0.0.0.0", port=8080, log_level="warning")
+        except Exception as e:
+            logger.exception("Server crashed")
+
+    server_thread = threading.Thread(target=run_server, daemon=True)
     server_thread.start()
 
-    # Wait for the server to become ready
-    if not wait_for_server(SERVER_URL):
-        print('ERROR: Server failed to start within 30 seconds.')
+    # Wait for server to be ready
+    if not wait_for_server():
+        logger.error("Server failed to start within 30s")
         sys.exit(1)
 
-    # Open native window
-    import webview
-    webview.create_window(
-        'Mars Chat',
-        url=f'{SERVER_URL}/chat',
-        width=1200,
-        height=800,
-    )
-    webview.start()
+    logger.info("Server ready, opening window...")
 
-    # Window was closed – exit the process
-    sys.exit(0)
+    # Open native window
+    try:
+        import webview
+        window = webview.create_window(
+            'Mars Chat',
+            'http://localhost:8080/chat',
+            width=1200,
+            height=800,
+            min_size=(800, 600),
+        )
+        webview.start()
+    except Exception as e:
+        logger.exception("Window failed")
+
+    logger.info("Window closed, exiting.")
+    os._exit(0)
