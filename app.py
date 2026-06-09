@@ -118,6 +118,10 @@ def migrate_db():
             db.execute("ALTER TABLE users ADD COLUMN avatar_url TEXT DEFAULT ''")
         if 'bio' not in cols:
             db.execute("ALTER TABLE users ADD COLUMN bio TEXT DEFAULT ''")
+        if 'is_admin' not in cols:
+            db.execute("ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0")
+            # Make first registered user (id=1) admin by default
+            db.execute("UPDATE users SET is_admin=1 WHERE id=1")
 migrate_db()
 
 # ── Helpers ─────────────────────────────────────────────────────────────
@@ -141,6 +145,20 @@ def require_auth(f):
         user = get_current_user(request)
         if not user:
             return RedirectResponse("/login", status_code=303)
+        request.state.user = user
+        if inspect.iscoroutinefunction(f):
+            return await f(request, *args, **kwargs)
+        else:
+            return f(request, *args, **kwargs)
+    return decorated
+def require_admin(f):
+    @wraps(f)
+    async def decorated(request: Request, *args, **kwargs):
+        user = get_current_user(request)
+        if not user:
+            return RedirectResponse("/login", status_code=303)
+        if not user["is_admin"]:
+            return RedirectResponse("/chat", status_code=303)
         request.state.user = user
         if inspect.iscoroutinefunction(f):
             return await f(request, *args, **kwargs)
@@ -257,8 +275,11 @@ def register(request: Request, username: str = Form(...), password: str = Form(.
         existing = db.execute("SELECT id FROM users WHERE username=?", (username,)).fetchone()
         if existing:
             return templates.TemplateResponse(request, "register.html", {"error": "Username sudah dipakai!"})
-        db.execute("INSERT INTO users (username, password_hash, display_name, avatar_color) VALUES (?, ?, ?, ?)",
-                   (username, hash_password(password), display_name, color))
+        # Check if this is the first user
+        count = db.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+        is_first = 1 if count == 0 else 0
+        db.execute("INSERT INTO users (username, password_hash, display_name, avatar_color, is_admin) VALUES (?, ?, ?, ?, ?)",
+                   (username, hash_password(password), display_name, color, is_first))
     response = RedirectResponse("/chat", status_code=303)
     response.set_cookie("session_token", username, max_age=86400*7)
     return response
@@ -294,7 +315,8 @@ def chat_page(request: Request):
         all_users = db.execute("SELECT * FROM users WHERE id != ? ORDER BY display_name", (user["id"],)).fetchall()
 
     return templates.TemplateResponse(request, "chat.html", {
-        "request": request, "user": user, "conversations": conversations, "all_users": all_users
+        "request": request, "user": user, "conversations": conversations, "all_users": all_users,
+        "is_admin": user["is_admin"]
     })
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -635,6 +657,74 @@ def clear_conversation(request: Request, conv_id: int):
         db.execute("DELETE FROM messages WHERE conversation_id=?", (conv_id,))
         db.execute("DELETE FROM conversation_members WHERE conversation_id=?", (conv_id,))
         db.execute("DELETE FROM conversations WHERE id=?", (conv_id,))
+    return JSONResponse({"ok": True})
+
+# ═══════════════════════════════════════════════════════════════════════
+# ROUTES: ADMIN
+# ═══════════════════════════════════════════════════════════════════════
+@app.get("/admin", response_class=HTMLResponse)
+@require_admin
+def admin_page(request: Request):
+    user = request.state.user
+    return templates.TemplateResponse(request, "admin.html", {
+        "request": request, "user": user
+    })
+
+@app.get("/api/admin/users")
+@require_admin
+def api_admin_users(request: Request):
+    with get_db() as db:
+        users = db.execute("""
+            SELECT id, username, display_name, avatar_color, avatar_url, bio,
+                   is_online, last_seen, is_admin, created_at
+            FROM users ORDER BY id ASC
+        """).fetchall()
+    return JSONResponse([dict(u) for u in users])
+
+@app.post("/api/admin/users/{user_id}/update")
+@require_admin
+async def api_admin_update_user(request: Request, user_id: int):
+    data = await request.json()
+    display_name = data.get("display_name", "").strip()
+    bio = data.get("bio", "").strip()
+    is_admin_val = 1 if data.get("is_admin", False) else 0
+    if not display_name:
+        return JSONResponse({"error": "Display name is required"}, status_code=400)
+    with get_db() as db:
+        existing = db.execute("SELECT id FROM users WHERE id=?", (user_id,)).fetchone()
+        if not existing:
+            return JSONResponse({"error": "User not found"}, status_code=404)
+        db.execute("UPDATE users SET display_name=?, bio=?, is_admin=? WHERE id=?",
+                   (display_name, bio, is_admin_val, user_id))
+    return JSONResponse({"ok": True})
+
+@app.post("/api/admin/users/{user_id}/reset-password")
+@require_admin
+async def api_admin_reset_password(request: Request, user_id: int):
+    data = await request.json()
+    new_password = data.get("new_password", "").strip()
+    if not new_password or len(new_password) < 4:
+        return JSONResponse({"error": "Password must be at least 4 characters"}, status_code=400)
+    with get_db() as db:
+        existing = db.execute("SELECT id FROM users WHERE id=?", (user_id,)).fetchone()
+        if not existing:
+            return JSONResponse({"error": "User not found"}, status_code=404)
+        db.execute("UPDATE users SET password_hash=? WHERE id=?",
+                   (hash_password(new_password), user_id))
+    return JSONResponse({"ok": True})
+
+@app.delete("/api/admin/users/{user_id}")
+@require_admin
+def api_admin_delete_user(request: Request, user_id: int):
+    # Prevent admin from deleting themselves
+    user = request.state.user
+    if user["id"] == user_id:
+        return JSONResponse({"error": "Cannot delete yourself"}, status_code=400)
+    with get_db() as db:
+        existing = db.execute("SELECT id FROM users WHERE id=?", (user_id,)).fetchone()
+        if not existing:
+            return JSONResponse({"error": "User not found"}, status_code=404)
+        db.execute("DELETE FROM users WHERE id=?", (user_id,))
     return JSONResponse({"ok": True})
 
 # ═══════════════════════════════════════════════════════════════════════
