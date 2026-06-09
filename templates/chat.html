@@ -22,11 +22,10 @@
         .theme-transition * { transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease !important; }
     </style>
 </head>
-<body x-data="{ darkMode: JSON.parse(localStorage.getItem('marsDarkMode') ?? 'true') }"
-      :class="darkMode ? 'bg-mars h-screen overflow-hidden' : 'bg-mars-light h-screen overflow-hidden'"
-      class="theme-transition">
+<body class="theme-transition">
 
-<div x-data="chatApp()" x-init="init()" class="h-screen flex">
+<div x-data="chatApp()" x-init="init()" class="h-screen flex"
+     :class="darkMode ? 'bg-mars' : 'bg-mars-light'">
 
     <!-- ═══ LEFT SIDEBAR ═══ -->
     <div class="w-80 flex-shrink-0 flex flex-col h-full"
@@ -445,6 +444,7 @@
 <script>
 function chatApp() {
     return {
+        darkMode: JSON.parse(localStorage.getItem('marsDarkMode') ?? 'true'),
         conversations: [],
         activeConv: null,
         messages: [],
@@ -481,10 +481,8 @@ function chatApp() {
         },
 
         toggleTheme() {
-            // Access darkMode from the body-level x-data
-            const bodyData = Alpine.$data(document.body);
-            bodyData.darkMode = !bodyData.darkMode;
-            localStorage.setItem('marsDarkMode', JSON.stringify(bodyData.darkMode));
+            this.darkMode = !this.darkMode;
+            localStorage.setItem('marsDarkMode', JSON.stringify(this.darkMode));
         },
 
         connectWebSocket() {
